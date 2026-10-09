@@ -7,8 +7,8 @@ const SOLDIERS={
     Kargılı:90,
     'Atlı Okçu':135,
     Sipahi:105,
-    Mancınık:40,
-    Top:50
+    Mancınık:25,
+    Top:15
   },
   Hun:{
     Toygun:72,
@@ -18,8 +18,8 @@ const SOLDIERS={
     Tunga:120,
     Talakan:150,
     Tarkan:120,
-    Mancınık:40,
-    Top:50
+    Mancınık:25,
+    Top:15
   },
   Göktürk:{
     Karabudun:54,
@@ -29,8 +29,8 @@ const SOLDIERS={
     Muhafız:90,
     'Mavi Atlı':120,
     Kürşat:90,
-    Mancınık:40,
-    Top:50
+    Mancınık:25,
+    Top:15
   }
 };
 
