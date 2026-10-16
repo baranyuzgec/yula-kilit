@@ -35,7 +35,7 @@ const SOLDIERS={
 };
 
 const HUN_SPEED_BONUS=1.10;
-const YULA_FACTOR=513.5;
+const YULA_FACTOR=514.2;
 
 let villages=JSON.parse(localStorage.getItem('umaykut_villages')||'[]'),
     enemy={race:'',name:'',speed:0},
@@ -153,7 +153,7 @@ function pick(kind,r,n,s){
 
    Etkin hız = asker hızı.
    Hun'da server bonusu nedeniyle etkin hız = temel hız × 1.10.
-   Süre = mesafe × 513.5 / etkin hız.
+   Süre = mesafe × 514.2 / etkin hız; mesafe tam hassasiyette kullanılır.
 */
 
 function effectiveSpeed(st){
@@ -165,9 +165,16 @@ function dist(x1,y1,x2,y2){
   return Math.sqrt((x2-x1)**2+(y2-y1)**2);
 }
 
-function sec(x1,y1,x2,y2,s){
+function sec(distance,s,diamond=false){
   if(!s)return 0;
-  return Math.round(dist(x1,y1,x2,y2)*(YULA_FACTOR/s));
+  let raw=distance*(YULA_FACTOR/s);
+  if(diamond)raw/=2;
+  // Elmas etkisi önce uygulanır; sonra yolculuk süresi tam saniyeye yuvarlanır.
+  return Math.round(raw);
+}
+
+function fmtCells(distance){
+  return distance.toFixed(1).replace('.',',');
 }
 
 function fmt(v){
@@ -215,14 +222,9 @@ function calculate(){
       throw Error('Düşmanın köyünün X ve Y koordinatlarını gir.');
 
     /* Düşmanın saldırdığı bizim köyümüz:
-       source -> enemy */
-    let enemyLeg=sec(
-      ex,ey,
-      +source.x,+source.y,
-      effectiveSpeed(enemy)
-    );
-
-    if($('diamond').checked)enemyLeg/=2;
+       source -> enemy. Süre hesabında tam hassasiyetli hücre mesafesi kullanılır. */
+    let enemyDistance=dist(ex,ey,+source.x,+source.y);
+    let enemyLeg=sec(enemyDistance,effectiveSpeed(enemy),$('diamond').checked);
 
     let dep=new Date(a.getTime()-enemyLeg*1000);
     let ret=new Date(a.getTime()+enemyLeg*1000);
@@ -246,13 +248,8 @@ function calculate(){
     if(!Number.isFinite(tx)||!Number.isFinite(ty))
       throw Error('Düşmana saldıracağın köyün X ve Y koordinatlarını gir.');
 
-    let ownLeg=sec(
-      tx,ty,
-      ex,ey,
-      effectiveSpeed(mine)
-    );
-
-    if($('mineDiamond').checked)ownLeg/=2;
+    let ownDistance=dist(tx,ty,ex,ey);
+    let ownLeg=sec(ownDistance,effectiveSpeed(mine),$('mineDiamond').checked);
 
     let send=new Date(ret.getTime()-ownLeg*1000);
 
@@ -260,6 +257,10 @@ function calculate(){
       <div class="box">
         <div class="k">Düşman gidiş</div>
         <div class="v">${fmt(enemyLeg)}</div>
+      </div>
+      <div class="box">
+        <div class="k">Düşman mesafesi</div>
+        <div class="v">${fmtCells(enemyDistance)} hücre</div>
       </div>
       <div class="box">
         <div class="k">Düşman çıkış</div>
@@ -276,6 +277,10 @@ function calculate(){
       <div class="box">
         <div class="k">Senin yol</div>
         <div class="v">${fmt(ownLeg)}</div>
+      </div>
+      <div class="box">
+        <div class="k">Senin mesafen</div>
+        <div class="v">${fmtCells(ownDistance)} hücre</div>
       </div>
       <div class="box full">
         <div class="k">Senin gönderme saatin</div>
