@@ -1,3 +1,4 @@
+/* YULA KİLİT hesaplama güncellemesi: hücre mesafesi tam hassasiyet, süre katsayısı 514.2. */
 const SOLDIERS={
   Selçuklu:{
     Gulam:66,
@@ -35,7 +36,7 @@ const SOLDIERS={
 };
 
 const HUN_SPEED_BONUS=1.10;
-const YULA_FACTOR=514.2;
+const YULA_FACTOR=514.2; // Yula'da doğrulanan hücre başına süre katsayısı
 
 let villages=JSON.parse(localStorage.getItem('umaykut_villages')||'[]'),
     enemy={race:'',name:'',speed:0},
@@ -162,14 +163,16 @@ function effectiveSpeed(st){
 }
 
 function dist(x1,y1,x2,y2){
-  return Math.sqrt((x2-x1)**2+(y2-y1)**2);
+  // Hücre mesafesini koordinatlardan tam hassasiyetle hesapla.
+  return Math.hypot(x2-x1,y2-y1);
 }
 
 function sec(distance,s,diamond=false){
-  if(!s)return 0;
-  let raw=distance*(YULA_FACTOR/s);
+  if(!Number.isFinite(distance)||distance<0||!Number.isFinite(s)||s<=0)return 0;
+  // Süre hesabında ekranda gösterilen 1 ondalıklı mesafeyi değil, tam mesafeyi kullan.
+  let raw=distance*YULA_FACTOR/s;
   if(diamond)raw/=2;
-  // Elmas etkisi önce uygulanır; sonra yolculuk süresi tam saniyeye yuvarlanır.
+  // Şimdiki model: elmas uygulanır, ardından oyun süresi en yakın tam saniyeye yuvarlanır.
   return Math.round(raw);
 }
 
@@ -214,12 +217,15 @@ function calculate(){
     if(!source)
       throw Error('Senin köyünü seç.');
 
-    let ex=+$('ex').value,
-        ey=+$('ey').value,
+    if($('ex').value.trim()===''||$('ey').value.trim()==='')
+      throw Error('Düşmanın köyünün X ve Y koordinatlarını gir.');
+
+    let ex=Number($('ex').value),
+        ey=Number($('ey').value),
         a=time();
 
     if(!Number.isFinite(ex)||!Number.isFinite(ey))
-      throw Error('Düşmanın köyünün X ve Y koordinatlarını gir.');
+      throw Error('Düşmanın köyünün X ve Y koordinatları sayı olmalı.');
 
     /* Düşmanın saldırdığı bizim köyümüz:
        source -> enemy. Süre hesabında tam hassasiyetli hücre mesafesi kullanılır. */
@@ -245,7 +251,7 @@ function calculate(){
       ty=+$('ty').value;
     }
 
-    if(!Number.isFinite(tx)||!Number.isFinite(ty))
+    if(!Number.isFinite(tx)||!Number.isFinite(ty)||$('tx').value.trim()===''&&(!targetSelect||targetSelect.value==='')||$('ty').value.trim()===''&&(!targetSelect||targetSelect.value===''))
       throw Error('Düşmana saldıracağın köyün X ve Y koordinatlarını gir.');
 
     let ownDistance=dist(tx,ty,ex,ey);
