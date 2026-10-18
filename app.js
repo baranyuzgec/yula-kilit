@@ -206,58 +206,82 @@ function ts(d){
   return d.toLocaleTimeString('tr-TR',{hour12:false});
 }
 
+function parseNumericInput(id){
+  const raw=$(id).value.trim();
+  if(raw==='') return NaN;
+  // Oyuncu hücreyi Türkçe virgülle de yazabilir: 53,2.
+  return Number(raw.replace(',', '.'));
+}
+
+function toggleDistanceMode(kind){
+  const mode=$(kind==='enemy'?'enemyDistanceMode':'ownDistanceMode');
+  const wrap=$(kind==='enemy'?'enemyCellsWrap':'ownCellsWrap');
+  if(mode && wrap) wrap.hidden=mode.value!=='cells';
+}
+
 function calculate(){
   try{
     if(!enemy.speed||!mine.speed)
       throw Error('Önce düşman ve kendi askerini seç.');
 
-    let sourceIndex=$('sourceVillage').value;
-    let source=villages[+sourceIndex];
+    const enemyMode=$('enemyDistanceMode')?$('enemyDistanceMode').value:'coords';
+    const ownMode=$('ownDistanceMode')?$('ownDistanceMode').value:'coords';
+    const enemyCoordsNeeded=ownMode==='coords';
+    const exRaw=$('ex').value.trim(), eyRaw=$('ey').value.trim();
+    let ex=exRaw===''?NaN:Number(exRaw), ey=eyRaw===''?NaN:Number(eyRaw);
+    const coordinatesAvailable=Number.isFinite(ex)&&Number.isFinite(ey);
+    const a=time();
 
-    if(!source)
-      throw Error('Senin köyünü seç.');
-
-    if($('ex').value.trim()===''||$('ey').value.trim()==='')
-      throw Error('Düşmanın köyünün X ve Y koordinatlarını gir.');
-
-    let ex=Number($('ex').value),
-        ey=Number($('ey').value),
-        a=time();
-
-    if(!Number.isFinite(ex)||!Number.isFinite(ey))
-      throw Error('Düşmanın köyünün X ve Y koordinatları sayı olmalı.');
-
-    /* Düşmanın saldırdığı bizim köyümüz:
-       source -> enemy. Süre hesabında tam hassasiyetli hücre mesafesi kullanılır. */
-    let enemyDistance=dist(ex,ey,+source.x,+source.y);
-    let enemyLeg=sec(enemyDistance,effectiveSpeed(enemy),$('diamond').checked);
-
-    let dep=new Date(a.getTime()-enemyLeg*1000);
-    let ret=new Date(a.getTime()+enemyLeg*1000);
-
-    /* Bizim düşmana saldıracağımız köy:
-       target -> enemy */
-    let tx,ty;
-
-    let targetSelect=$('targetVillage');
-    if(targetSelect && targetSelect.value!==''){
-      let target=villages[+targetSelect.value];
-      if(!target)throw Error('Saldıracağın köyü seç.');
-
-      tx=+target.x;
-      ty=+target.y;
+    // Enemy travel: either calculate from coordinates or use a manually entered cell distance.
+    let enemyDistance;
+    if(enemyMode==='cells'){
+      enemyDistance=parseNumericInput('enemyCells');
+      if(!Number.isFinite(enemyDistance)||enemyDistance<0)
+        throw Error('Düşman yolculuğu için geçerli hücre mesafesi gir. Örnek: 31,0');
     }else{
-      tx=+$('tx').value;
-      ty=+$('ty').value;
+      if(!coordinatesAvailable)
+        throw Error('Düşmanın köyünün X ve Y koordinatlarını gir.');
+      const sourceIndex=$('sourceVillage').value;
+      const source=villages[+sourceIndex];
+      if(!source)
+        throw Error('Düşmanın saldırdığı senin köyünü seç.');
+      enemyDistance=dist(ex,ey,+source.x,+source.y);
     }
 
-    if(!Number.isFinite(tx)||!Number.isFinite(ty)||$('tx').value.trim()===''&&(!targetSelect||targetSelect.value==='')||$('ty').value.trim()===''&&(!targetSelect||targetSelect.value===''))
-      throw Error('Düşmana saldıracağın köyün X ve Y koordinatlarını gir.');
+    let enemyLeg=sec(enemyDistance,effectiveSpeed(enemy),$('diamond').checked);
+    const dep=new Date(a.getTime()-enemyLeg*1000);
+    const ret=new Date(a.getTime()+enemyLeg*1000);
 
-    let ownDistance=dist(tx,ty,ex,ey);
-    let ownLeg=sec(ownDistance,effectiveSpeed(mine),$('mineDiamond').checked);
+    // Our outgoing travel: independently choose coordinates or a manual cell distance.
+    let ownDistance;
+    if(ownMode==='cells'){
+      ownDistance=parseNumericInput('ownCells');
+      if(!Number.isFinite(ownDistance)||ownDistance<0)
+        throw Error('Bizim saldırımız için geçerli hücre mesafesi gir. Örnek: 53,2');
+    }else{
+      if(!coordinatesAvailable)
+        throw Error('Bizim saldırı mesafesini koordinatla hesaplamak için düşman köyünün X ve Y koordinatlarını gir.');
 
-    let send=new Date(ret.getTime()-ownLeg*1000);
+      let tx,ty;
+      const targetSelect=$('targetVillage');
+      if(targetSelect && targetSelect.value!==''){
+        const target=villages[+targetSelect.value];
+        if(!target) throw Error('Saldıracağın kayıtlı köyü seç.');
+        tx=+target.x;
+        ty=+target.y;
+      }else{
+        const txRaw=$('tx').value.trim(), tyRaw=$('ty').value.trim();
+        if(txRaw===''||tyRaw==='')
+          throw Error('Düşmana saldıracağın köyün X ve Y koordinatlarını gir veya hücre mesafesi seç.');
+        tx=Number(txRaw); ty=Number(tyRaw);
+      }
+      if(!Number.isFinite(tx)||!Number.isFinite(ty))
+        throw Error('Saldıracağın köyün X ve Y koordinatları sayı olmalı.');
+      ownDistance=dist(tx,ty,ex,ey);
+    }
+
+    const ownLeg=sec(ownDistance,effectiveSpeed(mine),$('mineDiamond').checked);
+    const send=new Date(ret.getTime()-ownLeg*1000);
 
     $('results').innerHTML=`
       <div class="box">
@@ -296,13 +320,16 @@ function calculate(){
     alert(e.message);
   }
 }
-
 function clearAll(){
-  ['ex','ey','tx','ty','ah','am','as'].forEach(id=>{
+  ['ex','ey','tx','ty','ah','am','as','enemyCells','ownCells'].forEach(id=>{
     if($(id))$(id).value='';
   });
 
   if($('targetVillage'))$('targetVillage').value='';
+  if($('enemyDistanceMode'))$('enemyDistanceMode').value='coords';
+  if($('ownDistanceMode'))$('ownDistanceMode').value='coords';
+  toggleDistanceMode('enemy');
+  toggleDistanceMode('own');
 
   enemy={race:'',name:'',speed:0};
   mine={race:'',name:'',speed:0};
@@ -315,3 +342,5 @@ function clearAll(){
 }
 
 renderVillages();
+toggleDistanceMode('enemy');
+toggleDistanceMode('own');
