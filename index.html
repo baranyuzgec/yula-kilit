@@ -57,7 +57,13 @@
 <section id="adminPanel" class="card" hidden>
   <div class="title">Üye yönetimi</div>
   <div id="inviteUsage" class="muted" style="margin:0 0 12px">Davet kayıtları: yükleniyor...</div>
-  <div class="muted" style="margin:0 0 8px">Üyeler ortak davet koduyla kendileri kayıt olabilir. Buradan üyelerin erişimini açıp kapatabilirsin.</div>
+  <div class="muted" style="margin:0 0 8px">Üyeler davet koduyla kayıt olabilir. Yeni kod 30 kayıt için geçerlidir ve 24 saat sonra sona erer.</div>
+  <button id="createInviteButton" class="btn" type="button" style="margin:0 0 10px">Yeni davet kodu oluştur</button>
+  <div id="inviteCodeResult" class="muted" hidden style="margin:0 0 12px;padding:10px;border:1px solid #70572d;border-radius:9px;overflow-wrap:anywhere">
+    <div>Bu kodu şimdi kopyalayıp davet edeceğin kişiyle paylaş. Paneli kapatırsan kod ekrandan silinir.</div>
+    <div style="margin-top:7px;font-size:15px;font-weight:800;color:#e8b94e"><code id="inviteCodeDisplay"></code></div>
+    <div style="margin-top:5px">Son kullanma: <span id="inviteExpiresAt"></span></div>
+  </div>
   <div id="memberList" class="muted">Üyeler yükleniyor...</div>
 </section>
 <section class="card"><div class="title">Köylerim</div><div class="grid2"><div class="field"><label>Köy adı</label><input id="vname"></div><div class="field"><label>X</label><input id="vx" inputmode="numeric"></div><div class="field"><label>Y</label><input id="vy" inputmode="numeric"></div><button class="btn" onclick="addVillage()">+ Köy Kaydet</button></div><div id="villages" style="margin-top:9px"></div></section>

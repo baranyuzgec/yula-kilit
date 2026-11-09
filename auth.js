@@ -194,6 +194,42 @@
     }
   }
 
+  async function createInvite() {
+    const button = $('createInviteButton');
+    const resultBox = $('inviteCodeResult');
+    const codeDisplay = $('inviteCodeDisplay');
+    const expiryDisplay = $('inviteExpiresAt');
+    if (resultBox) resultBox.hidden = true;
+    if (codeDisplay) codeDisplay.textContent = '';
+    if (expiryDisplay) expiryDisplay.textContent = '';
+
+    setBusy(button, true, 'Kod oluşturuluyor...');
+    try {
+      const result = await callAdmin({ action: 'create_invite' });
+      const code = result?.invite_code;
+      const expiresAt = result?.expires_at;
+      if (!code || !expiresAt) throw new Error('Sunucu davet kodunu veya son kullanma zamanını döndürmedi.');
+
+      // Düz metin kod yalnızca bu oturumdaki yönetici ekranında gösterilir; tarayıcı depolamasına yazılmaz.
+      if (codeDisplay) codeDisplay.textContent = String(code);
+      if (expiryDisplay) {
+        const expiryDate = new Date(expiresAt);
+        expiryDisplay.textContent = Number.isNaN(expiryDate.getTime())
+          ? String(expiresAt)
+          : expiryDate.toLocaleString('tr-TR');
+      }
+      if (resultBox) resultBox.hidden = false;
+      await refreshMembers();
+    } catch (err) {
+      if (resultBox) resultBox.hidden = true;
+      if (codeDisplay) codeDisplay.textContent = '';
+      if (expiryDisplay) expiryDisplay.textContent = '';
+      alert(`Davet kodu oluşturulamadı: ${err.message}`);
+    } finally {
+      setBusy(button, false);
+    }
+  }
+
   async function login(event) {
     event.preventDefault();
     const button = $('loginButton');
@@ -327,10 +363,19 @@
     $('forgotPasswordButton').addEventListener('click', forgotPassword);
     $('changePasswordButton').addEventListener('click', changePassword);
     $('logoutButton').addEventListener('click', () => sb.auth.signOut());
+    const createInviteButton = $('createInviteButton');
+    if (createInviteButton) createInviteButton.addEventListener('click', createInvite);
     $('adminOpenButton').addEventListener('click', async () => {
       const panel = $('adminPanel');
       panel.hidden = !panel.hidden;
-      if (!panel.hidden) await refreshMembers();
+      if (!panel.hidden) {
+        await refreshMembers();
+      } else {
+        const resultBox = $('inviteCodeResult');
+        if (resultBox) resultBox.hidden = true;
+        if ($('inviteCodeDisplay')) $('inviteCodeDisplay').textContent = '';
+        if ($('inviteExpiresAt')) $('inviteExpiresAt').textContent = '';
+      }
     });
   }
 
