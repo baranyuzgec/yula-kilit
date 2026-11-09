@@ -1,4 +1,4 @@
-/* YULA KİLİT hesaplama güncellemesi: hücre mesafesi tam hassasiyet, süre katsayısı 514.2. */
+/* YULA KİLİT: tam hassasiyetli mesafe ve süre hesabı; yeni sunucu katsayısı 1800. */
 const SOLDIERS={
   Selçuklu:{
     Gulam:66,
@@ -36,16 +36,33 @@ const SOLDIERS={
 };
 
 const HUN_SPEED_BONUS=1.10;
-const YULA_FACTOR=514.2; // Yula'da doğrulanan hücre başına süre katsayısı
+const YULA_FACTOR=1800; // Yeni sunucunun tüm devletlerde kullanılan ortak süre katsayısı
 
-let villages=JSON.parse(localStorage.getItem('umaykut_villages')||'[]'),
+let villageStorageKey='umaykut_villages',
+    villages=JSON.parse(localStorage.getItem('umaykut_villages')||'[]'),
     enemy={race:'',name:'',speed:0},
     mine={race:'',name:'',speed:0};
 
 const $=id=>document.getElementById(id);
 
+
+function loadVillagesForUser(userId){
+  // Köy listelerini aynı cihazdaki farklı üyeler arasında ayır.
+  villageStorageKey=`umaykut_villages_${userId}`;
+  let saved=localStorage.getItem(villageStorageKey);
+  if(saved===null && localStorage.getItem('umaykut_villages')!==null && !localStorage.getItem('umaykut_villages_migrated')){
+    saved=localStorage.getItem('umaykut_villages');
+    localStorage.setItem(villageStorageKey,saved);
+    localStorage.setItem('umaykut_villages_migrated','1');
+    localStorage.removeItem('umaykut_villages');
+  }
+  try{villages=saved?JSON.parse(saved):[];if(!Array.isArray(villages))villages=[];}
+  catch(_){villages=[];}
+  renderVillages();
+}
+
 function save(){
-  localStorage.setItem('umaykut_villages',JSON.stringify(villages));
+  localStorage.setItem(villageStorageKey,JSON.stringify(villages));
   renderVillages();
 }
 
@@ -145,16 +162,14 @@ function pick(kind,r,n,s){
   $(kind==='enemy'?'enemySelector':'mineSelector').hidden=true;
 }
 
-/* Yula Online:
-   Referans testleri:
-   181,247 -> 186,253 | Barlas | 00:45
-   181,247 -> 193,241 | Kemankeş | 01:27
-   181,247 -> 238,260 | Barlas | 05:37
-   181,247 -> 177,249 | Barlas 26s / Tarkan 17s / Kemankeş 29s
+/* Yeni sunucu doğrulama örnekleri:
+   Hun 71.2 hücre: Toygun/Okçu 26:58, Tarık 32:22, Talakan 12:57.
+   Göktürk (611,61) -> (610,48), Kemankeş: 06:31.
 
-   Etkin hız = asker hızı.
-   Hun'da server bonusu nedeniyle etkin hız = temel hız × 1.10.
-   Süre = mesafe × 514.2 / etkin hız; mesafe tam hassasiyette kullanılır.
+   Askerlerin kayıtlı temel hızları korunur.
+   Hun'da mevcut %10 bonus uygulanır.
+   Süre = tam mesafe × 1800 / etkin hız.
+   Mesafe ve süre ara adımlarda yuvarlanmaz; yalnızca ekranda gösterilirken yuvarlanır.
 */
 
 function effectiveSpeed(st){
@@ -172,12 +187,13 @@ function sec(distance,s,diamond=false){
   // Süre hesabında ekranda gösterilen 1 ondalıklı mesafeyi değil, tam mesafeyi kullan.
   let raw=distance*YULA_FACTOR/s;
   if(diamond)raw/=2;
-  // Şimdiki model: elmas uygulanır, ardından oyun süresi en yakın tam saniyeye yuvarlanır.
-  return Math.round(raw);
+  // Ara hesaplamalarda saniyeyi yuvarlama. Tam hassasiyet fmt()/ts() aşamasına kadar korunur.
+  return raw;
 }
 
 function fmtCells(distance){
-  return distance.toFixed(1).replace('.',',');
+  // Gerçek koordinat mesafesini 4 ondalığa kadar göster; hesapta tam değer korunur.
+  return distance.toFixed(4).replace(/0+$/,'').replace(/\.$/,'').replace('.',',');
 }
 
 function fmt(v){
@@ -203,7 +219,9 @@ function time(){
 }
 
 function ts(d){
-  return d.toLocaleTimeString('tr-TR',{hour12:false});
+  // Saat gösteriminde en yakın saniyeye yuvarla; tarih hesabında ham süre korunur.
+  const shown=new Date(Math.round(d.getTime()/1000)*1000);
+  return shown.toLocaleTimeString('tr-TR',{hour12:false});
 }
 
 function parseNumericInput(id){
